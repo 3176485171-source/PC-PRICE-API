@@ -2,12 +2,22 @@
 // 这个文件跑在 Vercel 上，负责同时查京东/天猫和闲鱼的价格
 
 export default async function handler(req, res) {
+  // ===== CORS 允许跨域 =====
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // 浏览器预检请求，直接返回 200
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // 只允许 POST 请求
   if (req.method !== 'POST') {
     return res.status(405).json({ error: '只支持 POST' });
   }
 
-  const { items } = req.body; // items 是前端传来的配件关键词列表
+  const { items } = req.body;
   if (!items || !items.length) {
     return res.status(400).json({ error: '缺少 items 参数' });
   }
@@ -56,7 +66,7 @@ export default async function handler(req, res) {
 
     // 2. 查闲鱼（Apify）
     try {
-      const apifyToken = process.env.APIFY_TOKEN; // 从 Vercel 环境变量读取
+      const apifyToken = process.env.APIFY_TOKEN;
       if (apifyToken) {
         const apifyResp = await fetch(
           `https://api.apify.com/v2/acts/khadinakbar~goofish-search-scraper/runs?token=${apifyToken}`,
@@ -74,7 +84,6 @@ export default async function handler(req, res) {
         const runId = runData?.data?.id;
 
         if (runId) {
-          // 等待任务完成（简单轮询）
           let datasetId = null;
           for (let i = 0; i < 10; i++) {
             await new Promise(r => setTimeout(r, 2000));
